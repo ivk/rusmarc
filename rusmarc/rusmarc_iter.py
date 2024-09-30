@@ -1,6 +1,6 @@
 import io
 
-from rusmarc import Rusmarc, MalformedRecord
+from .rusmarc import Rusmarc, MalformedRecord
 
 
 class RusmarcFileIterator(object):
@@ -48,6 +48,9 @@ class MarcFileIterator(object):
     def __iter__(self):
         return self
 
+    def __next__(self):
+        return self.next()
+
     def next(self):
         rec_len_b = self.__f.read(5)
         if rec_len_b:
@@ -56,7 +59,7 @@ class MarcFileIterator(object):
             except ValueError:
                 raise MalformedRecord
             rec = self.__f.read(rec_len - 5)
-            assert isinstance(rec, str)
+            assert isinstance(rec, bytes)
             if rec[-1] == Rusmarc.IS1:
                 return rec_len_b + rec
             else:

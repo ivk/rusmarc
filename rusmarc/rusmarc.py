@@ -4,9 +4,9 @@ class MalformedRecord(Exception):
 
 
 class Rusmarc(object):
-    IS3 = '\x1F'  # Begin of subfield
-    IS2 = '\x1E'  # End of field
-    IS1 = '\x1D'  # End of record
+    IS3 = '\x1f'# Begin of subfield
+    IS2 = '\x1e'# End of field
+    IS1 = 0x1D  # End of record
     bIS3 = b'\x1F'  # Begin of subfield
     bIS2 = b'\x1E'  # End of field
     bIS1 = b'\x1D'  # End of record
@@ -24,7 +24,7 @@ class Rusmarc(object):
             self.deserialize(bytestr, encoding)
 
     def deserialize(self, record_str, encoding='utf-8'):
-        assert isinstance(record_str, str)
+        assert isinstance(record_str, bytes)
         header = record_str[:24]
         try:
             data_start = int(header[12:17])
@@ -49,9 +49,11 @@ class Rusmarc(object):
             int(header[:5])
         except ValueError:
             raise MalformedRecord()
-        if header[20:] != b'450 ' or header[10:12] != b'22' \
-                or data[-1:] != cls.bIS1 \
-                or dictionary[-1:] != cls.bIS2:
+        if (
+                # header[20:] != b'450 ' or
+                header[10:12] != b'22' or
+                data[-1:] != cls.bIS1 or
+                dictionary[-1:] != cls.bIS2):
             raise MalformedRecord()
 
     def __get_raw_fields(self, dictionary, data, encoding):
@@ -59,9 +61,9 @@ class Rusmarc(object):
         dl = len(dictionary)
         while i < dl - 1:
             try:
-                fno = int(str(dictionary[i:i+3]))
-                flen = int(str(dictionary[i+3:i+7]))
-                fstart = int(str(dictionary[i+7:i+12]))
+                fno = int(dictionary[i:i+3])
+                flen = int(dictionary[i+3:i+7])
+                fstart = int(dictionary[i+7:i+12])
                 fval = data[fstart:fstart+flen]
                 self.add_field(fno, fval.decode(encoding))
                 i += 12
@@ -69,7 +71,7 @@ class Rusmarc(object):
                 raise MalformedRecord()
 
     def __parse_raw_fields(self):
-        for fno, fval_list in self.fields.iteritems():
+        for fno, fval_list in self.fields.items():
             parsed_val_lst = []
             for fval in fval_list:
                 if fval[-1:] != self.IS2:
@@ -138,9 +140,9 @@ class Rusmarc(object):
         data = b"".join(data)
         header = b"".join(
             (b"%05d" % (24 + len(dic) + len(data)),
-            self.status, self.type, self.bib_level, self.hier_level,
-            self.control, b'22', b"%05d" % (24 + len(dic)),
-            self.coding_level, self.isbd, b' 450 '))
+            bytes(self.status), bytes(self.type), bytes(self.bib_level), bytes(self.hier_level),
+            bytes(self.control), b'22', b"%05d" % (24 + len(dic)),
+            bytes(self.coding_level), bytes(self.isbd), b' 450 '))
         return b"".join((header, dic, data))
 
     def __pack_field(self, fno, fval, delimiter_type):
