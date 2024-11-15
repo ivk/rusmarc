@@ -39,7 +39,7 @@ class Rusmarc(object):
         self.isbd = record_str[18]
         dictionary = record_str[24:data_start]
         data = record_str[data_start:]
-        self.__validate(header, dictionary, data)
+        self.__validate(header, dictionary, data, encoding)
         self.__get_raw_fields(dictionary, data, encoding)
         self.__parse_raw_fields()
 
