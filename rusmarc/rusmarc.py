@@ -1,7 +1,8 @@
 from __future__ import unicode_literals
 class MalformedRecord(Exception):
-    pass
-
+    def __init__(self, msg = ''):
+        super().__init__(self, msg)
+        # self.msg = f"Something goes wrong: {msg}"
 
 class Rusmarc(object):
     IS3 = '\x1f'# Begin of subfield
@@ -29,7 +30,7 @@ class Rusmarc(object):
         try:
             data_start = int(header[12:17])
         except ValueError:
-            raise MalformedRecord()
+            raise MalformedRecord(f"header is {header[12:17]}")
         self.status = record_str[5]
         self.type = record_str[6]
         self.bib_level = record_str[7]
@@ -48,13 +49,13 @@ class Rusmarc(object):
         try:
             int(header[:5])
         except ValueError:
-            raise MalformedRecord()
+            raise MalformedRecord(header[:5])
         if (
                 # header[20:] != b'450 ' or
                 header[10:12] != b'22' or
                 data[-1:] != cls.bIS1 or
                 dictionary[-1:] != cls.bIS2):
-            raise MalformedRecord()
+            raise MalformedRecord(f"{header[10:12]} must be b'22'")
 
     def __get_raw_fields(self, dictionary, data, encoding):
         i = 0
@@ -67,15 +68,16 @@ class Rusmarc(object):
                 fval = data[fstart:fstart+flen]
                 self.add_field(fno, fval.decode(encoding))
                 i += 12
+                # print(f"position must be {fno}, {flen}, {fstart}, {fval}")
             except ValueError:
-                raise MalformedRecord()
+                raise MalformedRecord(f"wrong position fno {dictionary[i:i+3]}, flen {dictionary[i+3:i+7]}, or fstart {dictionary[i+7:i+12]}")
 
     def __parse_raw_fields(self):
         for fno, fval_list in self.fields.items():
             parsed_val_lst = []
             for fval in fval_list:
                 if fval[-1:] != self.IS2:
-                    raise MalformedRecord()
+                    raise MalformedRecord(f"wrong field {fval[-1:]} value ")
                 parsed_val_lst.append(self.__parse_raw_field(fno, fval[:-1]))
             self.fields[fno] = parsed_val_lst
 
@@ -111,7 +113,7 @@ class Rusmarc(object):
             try:
                 fno = int(field[0:3])
             except ValueError:
-                raise MalformedRecord()
+                raise MalformedRecord(f"wrong field {field} value {self.IS3}")
             fval = self.__parse_raw_field(fno, field[3:])
             val.append(('1', {fno: [fval]}))
         return val
