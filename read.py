@@ -8,6 +8,7 @@ from email.policy import default
 from fileinput import filename
 from math import trunc
 from random import choices
+from pathlib import Path
 
 import rusmarc.rusmarc
 import rusmarc.rusmarc as RM
@@ -17,6 +18,7 @@ import rusmarc.rusmarc_iter as RMI
 standard_fields = {
     1: "Название",
     10: "ISBN",
+    11: "ISSN",
     100: "Данные общей обработки",
     101: "Язык ресурса",
     102: "Страна публикации или производства",
@@ -78,7 +80,8 @@ def write_table(connection, tblname, record):
                 tmp = [item[1] for d in record[k] for item in d['sf']]
                 val =  ', '.join(tmp)
             except Exception as e:
-                val = tmp['sf']
+                val = tmp
+                # val = tmp['sf']
 
         fields.append(f'field{k}')
         values.append(f"{val}")
@@ -95,6 +98,10 @@ def read(filename, encoding='UTF-8'):
     sample = {}
     with RMI.MarcFileIterator(filename, encoding) as it:
         for mrc in it:
+            if mrc is None:
+                print(f"Error happened: {it.last_error}")
+                err_count += 1
+                continue
             try:
                 r = RM.Rusmarc(mrc, encoding).fields
                 records.append(r)
@@ -124,9 +131,7 @@ def read(filename, encoding='UTF-8'):
                 if args.save_bad_records:
                     write_corrupted_to_file(mrc)
 
-    print("Total: %s recs, %s errors" % (count, err_count) )
-
-    return records, set(fields), sample
+    return records, set(fields), sample, err_count
 
 
 def write_log(data):
@@ -148,7 +153,11 @@ def write_good_to_file(data):
 def write_to_db(fields, file_name, records):
     if len(records):
         connection = sqlite3.connect('db/rusmarc.db')
-        tblname = file_name[0:-4]
+        if len(file_name) > 4 and '.' in file_name:
+            tblname = file_name[0:-4]
+        else:
+            tblname = file_name
+
         create_table(connection, tblname, fields)
 
         for r in records:
@@ -168,7 +177,27 @@ def main():
     if os.path.exists(log_file):
         os.remove(log_file)
 
-    records, fields, sample = read(args.filename, args.encoding)
+    err_count = 0
+    if not args.is_dir:
+        records, fields, sample, err_count = read(args.filename, args.encoding)
+        recs_count = len(records)
+    else:
+        records = []
+        fields = set()
+        files = [os.path.join(args.filename, f) for f in os.listdir(args.filename) if
+                 os.path.isfile(os.path.join(args.filename, f))]
+        print(len(files))
+
+        for f in files:
+            rec, rec_fields, sample, errs = read(f, args.encoding)
+
+            records.extend(rec)
+            fields.update(rec_fields)
+            err_count += errs
+            recs_count = len(records)
+
+    print("Total: %s recs, %s errors" % (recs_count, err_count) )
+
     print(f"Fields are: {sorted(fields)}")
     for f in sorted(fields):
         if f in standard_fields.keys():
@@ -185,13 +214,14 @@ def main():
 
 
     if args.save_db:
-        file_name = os.path.basename(args.filename)
+        file_name = os.path.basename(os.path.normpath(args.filename))
         write_to_db(fields, file_name, records)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Marcfiles parser')
     parser.add_argument('filename')
+
     parser.add_argument('-enc', '--encoding', default='UTF-8', choices=['UTF-8', 'cp1251', 'cp866'])
     parser.add_argument('-d', '--save_db',
                         action='store_true',
@@ -206,8 +236,17 @@ if __name__ == "__main__":
                         help='Save corrupted records into a file?')
 
     args = parser.parse_args()
-    modified_iso_file = 'marcfiles/newmarc.iso'
-    corrupted_iso_file = 'marcfiles/corrupted.iso'
+
+    if os.path.isdir(args.filename):
+        print('It is a directory')
+        args.save_file = False
+        args.save_bad_records = False
+        args.is_dir = True
+    else:
+        args.is_dir = False
+        modified_iso_file = 'marcfiles/newmarc.iso'
+        corrupted_iso_file = 'marcfiles/corrupted.iso'
+
     log_file = "corrupted.log"
 
     main()

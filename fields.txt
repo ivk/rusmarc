@@ -1,0 +1,32 @@
+                if tag == '100':
+                    new_tag = '701'
+                elif tag == '110':
+                    new_tag = '710'
+                elif tag == '111':
+                    new_tag = '711'
+                elif tag == '245':
+                    new_tag = '200'
+                elif tag == '250':
+                    new_tag = '205'
+                elif tag == '260':
+                    new_tag = '210'
+                elif tag == '300':
+                    new_tag = '215'
+                elif tag == '490':
+                    new_tag = '225'
+                elif tag == '504':
+                    new_tag = '320'
+                elif tag == '520':
+                    new_tag = '330'
+                elif tag == '650':
+                    new_tag = '606'
+                elif tag == '700':
+                    new_tag = '701'
+                elif tag == '710':
+                    new_tag = '710'
+                elif tag == '020':
+                    new_tag = '010'
+                elif tag == '041':
+                    new_tag = '101'
+                else:
+                    new_tag = tag
